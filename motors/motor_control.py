@@ -11,7 +11,7 @@ import rclpy
 from rclpy.node import Node
 from trajectory_msgs.msg import JointTrajectory
 from datatypes.srv import MotorSettingsSrv
-from datatypes.msg import MotorSettings
+from datatypes.msg import MotorSettings, Error
 from enum import Enum
 from urllib import request as urllib_request, parse as urllib_parse, error as urllib_error
 import json
@@ -154,6 +154,7 @@ class Motor_control(Node):
 
         def motor_settings_callback(self, request, response):
                 response.settings_persisted = False
+                error = Error()
                 try:
 
                         motors = self.motor_collection_to_multible_motors(request.motor_name)
@@ -173,6 +174,10 @@ class Motor_control(Node):
                                         response.settings_applied = True
                                 except Exception as e:
                                         response.settings_applied = False
+                                        error.typ = "Motor settings error"
+                                        error.message = f"Error applying motor-setting: {str(e)}"
+                                        response.error = error
+                                        return response
 
                                 try: 
                                         if response.settings_applied == True :
@@ -180,10 +185,19 @@ class Motor_control(Node):
                                 except Exception as e:
                                         self.get_logger().warn(f"Error persisting motor-setting: {str(e)}")
                                         response.settings_persisted = False
+                                        error.typ = "Motor settings error"
+                                        error.message = f"Error persisting motor-setting: {str(e)}"
+                                        response.error = error
+                                        return response
 
                 except Exception as e:
                         self.get_logger().warn(f"Error processing motor-settings-message: {str(e)}")
                         response.settings_applied = False
+                        error.typ = 'Motor settings error'
+                        error.message = f"Error processing motor-settings-message: {str(e)}"
+                        response.error = error
+                        return response
+
                 if self.dev == True or response.settings_applied == True:
                         #self.get_logger().info(f"Devmode: {str(self.dev)}\tresponse.settings_applied: {str(response.settings_applied)}")
                         msg = MotorSettings()
